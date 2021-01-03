@@ -38,12 +38,10 @@ func eliminate(field *field) *int {
 
 	// columns
 	for x := 0; x < size; x++ {
-		set := 0
 		bitfield := maskZero
 
 		for y := 0; y < size; y++ {
 			if len(field[x][y]) == 1 {
-				set++
 				mask := 1 << (field[x][y][0] - 1)
 
 				if bitfield & mask == 0 {
@@ -77,12 +75,10 @@ func eliminate(field *field) *int {
 
 	// rows
 	for y := 0; y < size; y++ {
-		set := 0
 		bitfield := maskZero
 
 		for x := 0; x < size; x++ {
 			if len(field[x][y]) == 1 {
-				set++
 				mask := 1 << (field[x][y][0] - 1)
 
 				if bitfield & mask == 0 {
@@ -117,13 +113,11 @@ func eliminate(field *field) *int {
 	// blocks
 	for sx := 0; sx < blocks; sx++ {
 		for sy := 0; sy < blocks; sy++ {
-			set := 0
 			bitfield := maskZero
 
 			for x := sx * blockSize; x < (sx + 1) * blockSize; x++ {
 				for y := sy * blockSize; y < (sy + 1) * blockSize; y++ {
 					if len(field[x][y]) == 1 {
-						set++
 						mask := 1 << (field[x][y][0] - 1)
 
 						if bitfield & mask == 0 {
