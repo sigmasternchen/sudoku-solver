@@ -3,24 +3,27 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"runtime"
 	"sync/atomic"
 	"time"
 )
 
-/*const size = 9
-const blocks = 3
-const blockSize = size / blocks*/
+const eliminatedCounterEnabled = true
 
-const size = 16
-const blocks = 4
+const size = 25
+const blocks = 5
 const blockSize = size / blocks
 
 const maskZero = (1 << size) - 1
 
 const guessChanSize = 1 << 20
 const eliminatedChanSize = 1 << 15
+
+// can't be constant, because go is strange
+var errorGuessChanUsage = int(math.Round(0.8 * float64(guessChanSize)))
+var warningEliminatedChanUsage = int(math.Round(0.8 * float64(eliminatedChanSize)))
 
 type field [size][size][]int
 
@@ -242,7 +245,9 @@ workerLoop:
 			} else if *eliminated == 0 {
 				break eliminateLoop
 			} else {
-				eliminatedChan <- *eliminated
+				if eliminatedCounterEnabled {
+					eliminatedChan <- *eliminated
+				}
 			}
 		}
 
@@ -286,6 +291,9 @@ func readField(input string) field {
 		} else if c >= 'a' && c <= 'z' {
 			field[x][y] = []int{int(c - 'a' + 10)}
 			inc = true
+		} else if c >= 'A' && c <= 'Z' {
+			field[x][y] = []int{int(c - 'A' + 10)}
+			inc = true
 		} else {
 			// ignore
 		}
@@ -309,7 +317,7 @@ func readField(input string) field {
 			} else {
 				for _, value := range field[x][y] {
 					if value < 1 || value > size {
-						log.Fatal("cell range exceeded")
+						log.Fatalf("cell range exceeded (%d, %d, %d)", x, y, value)
 					}
 				}
 			}
@@ -425,8 +433,36 @@ g-5c-----4-e2---
 6-e---gfa---3-c5
 `
 
+const test25x25 = `
+7B---6C--F29-----E----M-K
+-J-9-K---38--7-I-A--O-G--
+---P6-2--A----I----KF----
+-K-1--J4-EO-D5-6L-P--N--8
+-HEG-P----FKC--58---4---L
+---2B--J---N8-9H--4----3O
+---4-O--A87--2-3-P-------
+H------E---A--F-GC-I----6
+---O---2I----C----M---E--
+------6-K-H-M-3----A1----
+B2-5--MC4---O8-----3-6JL9
+-F1--8-H--L--J---B--E-K27
+E-G--DA3N-9--P6F157HB8---
+M-A-O-E9-6D-5---I2--C4H--
+---ND--5--3----LC6--GF---
+P4-3F2H-GD-M---N-9-J---B-
+N-B-8--A1-4I-LGP37--2--F-
+--7C5-NF------8---HBL----
+--2--9I-8-J---B-O-65NG-7-
+------K-M4----5-A8-E-I1--
+--LFE---D---3I---N----P6C
+D6--3--7----J-H-BL-P---1-
+A-NI1-O---MC-------9K-48F
+85--JC---1A-L--DF-G2I-3-H
+97----------K41--I-O-2-5-
+`
+
 func main() {
-	field := readField(test16x16)
+	field := readField(test25x25)
 	printField(field)
 	guesses <- field
 
@@ -438,16 +474,41 @@ func main() {
 		go worker()
 	}
 
-	go eliminiatedCounter()
+	if eliminatedCounterEnabled {
+		go eliminiatedCounter()
+	}
+
+	eliminatedChanSizeWarningShowed := false
+	guessChanSizeWarningShowed := false
 
 	for {
-		fmt.Printf("queued: %10d, remaining: %10d, eliminated: %d (+ %d)   \r", len(guesses), possibilities, globalEliminated, len(eliminatedChan))
 		time.Sleep(10 * time.Millisecond)
 
-		if len(guesses) == guessChanSize {
+		fmt.Printf("queued: %10d, remaining: %10d", len(guesses), possibilities)
+		if eliminatedCounterEnabled {
+			fmt.Printf(", eliminated: %d (+ %d)   ", globalEliminated, len(eliminatedChan))
+		}
+		fmt.Print("\r")
+
+		if len(guesses) >= errorGuessChanUsage {
+			if len(guesses) == guessChanSize {
+				fmt.Println()
+				fmt.Printf("error: guessChan full, deadlock; increase guessChanSize (current value: %d)\n", guessChanSize)
+				os.Exit(1)
+			} else if !guessChanSizeWarningShowed {
+				fmt.Println()
+				fmt.Printf("warning: guessChan is nearly full; increase guessChanSize (current value: %d)\n", guessChanSize)
+				guessChanSizeWarningShowed = true
+			}
+		}
+
+		if !eliminatedChanSizeWarningShowed && len(eliminatedChan) >= warningEliminatedChanUsage {
 			fmt.Println()
-			fmt.Println("possible deadlock; increase guessChanSize (current value: ", guessChanSize, ")")
-			os.Exit(1)
+			fmt.Printf(
+				"warning: eliminated chan is nearly full, might slow down workers; increase eliminatedChanSize (current value: %d)\n",
+				eliminatedChanSize)
+
+			eliminatedChanSizeWarningShowed = true
 		}
 
 		if len(solution) > 0 {
