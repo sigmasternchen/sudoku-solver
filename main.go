@@ -19,8 +19,8 @@ const blockSize = size / blocks
 
 const maskZero = (1 << size) - 1
 
-const guessChanSize = 1<<20
-const eliminatedChanSize = 1<<15
+const guessChanSize = 1 << 20
+const eliminatedChanSize = 1 << 15
 
 type field [size][size][]int
 
@@ -44,7 +44,7 @@ func eliminate(field *field) *int {
 			if len(field[x][y]) == 1 {
 				mask := 1 << (field[x][y][0] - 1)
 
-				if bitfield & mask == 0 {
+				if bitfield&mask == 0 {
 					// duplicate number
 					return nil
 				}
@@ -59,8 +59,8 @@ func eliminate(field *field) *int {
 				for i := 0; i < length; i++ {
 					if (bitfield & (1 << (field[x][y][i] - 1))) == 0 {
 						eliminated++
-						field[x][y][i] = field[x][y][length - 1]
-						field[x][y] = field[x][y][:length - 1]
+						field[x][y][i] = field[x][y][length-1]
+						field[x][y] = field[x][y][:length-1]
 						length--
 						i--
 					}
@@ -81,7 +81,7 @@ func eliminate(field *field) *int {
 			if len(field[x][y]) == 1 {
 				mask := 1 << (field[x][y][0] - 1)
 
-				if bitfield & mask == 0 {
+				if bitfield&mask == 0 {
 					// duplicate number
 					return nil
 				}
@@ -96,8 +96,8 @@ func eliminate(field *field) *int {
 				for i := 0; i < length; i++ {
 					if (bitfield & (1 << (field[x][y][i] - 1))) == 0 {
 						eliminated++
-						field[x][y][i] = field[x][y][length - 1]
-						field[x][y] = field[x][y][:length - 1]
+						field[x][y][i] = field[x][y][length-1]
+						field[x][y] = field[x][y][:length-1]
 						length--
 						i--
 					}
@@ -115,12 +115,12 @@ func eliminate(field *field) *int {
 		for sy := 0; sy < blocks; sy++ {
 			bitfield := maskZero
 
-			for x := sx * blockSize; x < (sx + 1) * blockSize; x++ {
-				for y := sy * blockSize; y < (sy + 1) * blockSize; y++ {
+			for x := sx * blockSize; x < (sx+1)*blockSize; x++ {
+				for y := sy * blockSize; y < (sy+1)*blockSize; y++ {
 					if len(field[x][y]) == 1 {
 						mask := 1 << (field[x][y][0] - 1)
 
-						if bitfield & mask == 0 {
+						if bitfield&mask == 0 {
 							// duplicate number
 							return nil
 						}
@@ -130,8 +130,8 @@ func eliminate(field *field) *int {
 				}
 			}
 
-			for x := sx * blockSize; x < (sx + 1) * blockSize; x++ {
-				for y := sy * blockSize; y < (sy + 1) * blockSize; y++ {
+			for x := sx * blockSize; x < (sx+1)*blockSize; x++ {
+				for y := sy * blockSize; y < (sy+1)*blockSize; y++ {
 					if len(field[x][y]) != 1 {
 						length := len(field[x][y])
 						for i := 0; i < length; i++ {
@@ -157,6 +157,7 @@ func eliminate(field *field) *int {
 }
 
 type result int
+
 const (
 	unsolved result = iota
 	solved
@@ -192,19 +193,30 @@ func copyField(fieldToCopy field) field {
 }
 
 func addGuesses(field field) {
+	hasGuess := false
+	minX := 0
+	minY := 0
+	minLength := size + 1
+
 	for x := 0; x < size; x++ {
 		for y := 0; y < size; y++ {
-			if len(field[x][y]) > 1 {
-				for _, value := range field[x][y] {
-					newField := copyField(field)
-					newField[x][y] = []int{value}
-
-					atomic.AddInt64(&possibilities, 1)
-					guesses <- newField
-				}
-				// we don't need to add more
-				return
+			length := len(field[x][y])
+			if length > 1 && length < minLength {
+				hasGuess = true
+				minX = x
+				minY = y
+				minLength = length
 			}
+		}
+	}
+
+	if hasGuess {
+		for _, value := range field[minX][minY] {
+			newField := copyField(field)
+			newField[minX][minY] = []int{value}
+
+			atomic.AddInt64(&possibilities, 1)
+			guesses <- newField
 		}
 	}
 }
@@ -217,11 +229,11 @@ func removePossibility() {
 }
 
 func worker() {
-	workerLoop:
+workerLoop:
 
 	for {
-		field := <- guesses
-		eliminateLoop:
+		field := <-guesses
+	eliminateLoop:
 		for {
 			eliminated := eliminate(&field)
 			if eliminated == nil {
@@ -253,7 +265,7 @@ func worker() {
 func all() []int {
 	var list []int
 	for i := 0; i < size; i++ {
-		list = append(list, i + 1)
+		list = append(list, i+1)
 	}
 	return list
 }
@@ -315,9 +327,9 @@ func printField(field field) {
 			} else if len(field[x][y]) == 1 {
 				value := field[x][y][0]
 				if value < 10 {
-					fmt.Printf("%c", rune(value + '0'))
+					fmt.Printf("%c", rune(value+'0'))
 				} else {
-					fmt.Printf("%c", rune(value - 10 + 'a'))
+					fmt.Printf("%c", rune(value-10+'a'))
 				}
 			} else {
 				fmt.Print(" ")
@@ -329,7 +341,7 @@ func printField(field field) {
 
 func eliminiatedCounter() {
 	for {
-		eliminiated := <- eliminatedChan
+		eliminiated := <-eliminatedChan
 		globalEliminated += int64(eliminiated)
 	}
 }
@@ -437,7 +449,7 @@ func main() {
 		}
 	}
 
-	solution := <- solution
+	solution := <-solution
 
 	fmt.Println()
 	fmt.Println()
