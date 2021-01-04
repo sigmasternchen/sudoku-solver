@@ -444,6 +444,12 @@ func main() {
 		fmt.Printf("queued: %10d, remaining: %10d, eliminated: %d (+ %d)   \r", len(guesses), possibilities, globalEliminated, len(eliminatedChan))
 		time.Sleep(10 * time.Millisecond)
 
+		if len(guesses) == guessChanSize {
+			fmt.Println()
+			fmt.Println("possible deadlock; increase guessChanSize (current value: ", guessChanSize, ")")
+			os.Exit(1)
+		}
+
 		if len(solution) > 0 {
 			break
 		}
